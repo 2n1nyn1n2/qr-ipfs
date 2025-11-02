@@ -37,9 +37,9 @@ jobs:
 
     - name: 🔍 deps
       run: |
-          sudo apt update
-          sudo apt install libgtk-3-dev -y
-          sudo apt install mesa-utils -y
+        sudo apt update
+        sudo apt install libgtk-3-dev -y
+        sudo apt install mesa-utils -y
 
     - name: 🔍 upgrade
       run: flutter upgrade
@@ -102,6 +102,7 @@ jobs:
         path: build/app/outputs/bundle/release/app-release.aab
 
 
+
     # - name: 🏗️ Build iOS Archive
     #   # Creates the .xcarchive file
     #   run: flutter build ios --no-codesign
@@ -150,6 +151,10 @@ jobs:
     permissions:
       contents: write # Required to create a tag/release
 
+    # 🟢 ADDED: Expose the output from the 'semver' step to the job level
+    outputs:
+      new_tag: ${{ steps.semver.outputs.tag }}
+    
     steps:
       - name: ⬇️ Checkout code
         uses: actions/checkout@v4
@@ -197,11 +202,8 @@ jobs:
               sha: context.sha
             });
 
-            // 4. Set the tag as an output for the next job
+            // 4. Set the tag as an output for the job
             core.setOutput('tag', nextTag);
-          
-          # Allow the workflow to run if no tags are found
-          retries: 0
           
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -210,8 +212,6 @@ jobs:
 
   release:
     needs: [build, tag_version] # Depend on the new tagging job
-    # Now that we create the tag, we can remove the 'if' condition here
-    # if: startsWith(github.ref, 'refs/tags/v')
     
     runs-on: ubuntu-latest
     permissions:
@@ -228,11 +228,10 @@ jobs:
       - name: Locate and Rename Android AAB
         id: locate_file # Add an ID to reference outputs
         run: |
-          # The tag is now an output from the 'tag_version' job
-          TAG=${{ needs.tag_version.outputs.semver.tag }} 
+          # 🟢 MODIFIED: Correctly access the job output 'new_tag'
+          TAG=${{ needs.tag_version.outputs.new_tag }} 
 
           # Example path to your built AAB file 
-          # Note: The path is now relative to the download location
           AAB_PATH=build/app/outputs/bundle/release/app-release.aab
 
           # Define the final asset name for the release
@@ -248,8 +247,8 @@ jobs:
       - name: 📝 Create Draft GitHub Release and Upload AAB
         uses: softprops/action-gh-release@v1
         with:
-          # Use the tag created in the previous job
-          tag_name: ${{ needs.tag_version.outputs.semver.tag }} 
+          # 🟢 MODIFIED: Correctly use the job output 'new_tag'
+          tag_name: ${{ needs.tag_version.outputs.new_tag }}
           
           # Use the filename created in the previous step's output
           files: ${{ steps.locate_file.outputs.ASSET_NAME }} 
@@ -257,5 +256,5 @@ jobs:
           # Add 'draft: true' to create a draft release
           draft: true
           
-          # Use the tag name for the release title
-          name: Draft Release ${{ needs.tag_version.outputs.semver.tag }}
+          # 🟢 MODIFIED: Correctly use the job output 'new_tag'
+          name: Draft Release ${{ needs.tag_version.outputs.new_tag }}
