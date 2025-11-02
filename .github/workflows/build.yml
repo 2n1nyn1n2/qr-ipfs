@@ -91,9 +91,9 @@ jobs:
         name: web-build
         path: build/web
 
-    - name: 🏗️ Build Android App Bundle (.aab)
+    - name: 🏗️ Build Android App Bundle (.apk)
       # The signing is handled automatically by Gradle using the files set up above
-      run: flutter build appbundle --release
+      run: flutter build apk --release
 
     - name: 📤 Upload Android Artifact
       uses: actions/upload-artifact@v4
