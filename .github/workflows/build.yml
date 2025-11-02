@@ -3,21 +3,22 @@ name: Build
 on:
   push:
     branches: [ "main" ]
-  pull_request:
-    branches: [ "main" ]
   workflow_dispatch:
 
 jobs:
   build:
     # Use Ubuntu for x64 builds
     runs-on: ubuntu-latest
-    
+
     # Optional: Set a timeout for the job
     timeout-minutes: 15
 
     steps:
     - name: ⬇️ Checkout code
       uses: actions/checkout@v4
+      # Important: Fetch all history for proper versioning
+      with:
+        fetch-depth: 0
 
     - name: ⚙️ Set up Flutter
       uses: subosito/flutter-action@v2
@@ -29,46 +30,45 @@ jobs:
         # Set architecture to x64 for the ubuntu-latest runner
         architecture: x64
         # Enable caching for pub packages
-        cache: true 
-
+        cache: true
 
     - name: 🔍 licenses
       run: yes | flutter doctor --android-licenses
-      
-    - name: 🔍 deps 
+
+    - name: 🔍 deps
       run: |
           sudo apt update
           sudo apt install libgtk-3-dev -y
           sudo apt install mesa-utils -y
-        
+
     - name: 🔍 upgrade
       run: flutter upgrade
 
     - name: 🔍 Check version
       run: flutter --version
-      
+
     - name: 🏗️ Create builds
       run: flutter create . --platforms android,ios,web
-      
+
     - name: 📦 Install dependencies
       run: flutter pub get
 
     - name: 📦 upgrade dependencies
       run: flutter pub upgrade --major-versions
-      
+
     - name: Outdated dependencies
       run: flutter pub outdated
 
     - name: 💎 Install CocoaPods
       run: |
         sudo gem install cocoapods
-          
+
     - name: 🔍 doctor
       run: flutter doctor
 
     - name: 🔍 print formatting
       run: dart format --output=show .
-      
+
     - name: 🔍 Check formatting
       run: dart format --set-exit-if-changed .
 
@@ -84,7 +84,7 @@ jobs:
 
     - name: 🏗️ Build Web Release
       run: flutter build web --release
-    
+
     - name: 🚀 Upload Web Artifact
       uses: actions/upload-artifact@v4
       with:
@@ -94,12 +94,13 @@ jobs:
     - name: 🏗️ Build Android App Bundle (.aab)
       # The signing is handled automatically by Gradle using the files set up above
       run: flutter build appbundle --release
-    
+
     - name: 📤 Upload Android Artifact
       uses: actions/upload-artifact@v4
       with:
         name: release-aab
         path: build/app/outputs/bundle/release/app-release.aab
+
 
     # - name: 🏗️ Build iOS Archive
     #   # Creates the .xcarchive file
@@ -137,46 +138,124 @@ jobs:
     #     name: linux-build
     #     path: build/linux/x64/release/bundle
 
+
+  tag_version:
+    ## New Job: Calculates the next version and creates the tag on 'main'
+    name: Create Semantic Version Tag
+    runs-on: ubuntu-latest
+    needs: build
+    # Only run this step if the previous job was successful and it's a push to main
+    if: success() && github.ref == 'refs/heads/main'
+    
+    permissions:
+      contents: write # Required to create a tag/release
+
+    steps:
+      - name: ⬇️ Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # Fetch all history for git tag detection
+
+      - name: 🏷️ Get next SemVer and Create Tag
+        id: semver
+        uses: 'actions/github-script@v7'
+        with:
+          script: |
+            const getNextVersion = (tags) => {
+              // Find the latest version tag (e.g., v1.2.3)
+              const latestTag = tags
+                .map(tag => tag.name)
+                .filter(name => name.startsWith('v') && /v\d+\.\d+\.\d+$/.test(name))
+                .sort()
+                .pop()
+              
+              if (!latestTag) {
+                return 'v1.0.0'; // Default to v1.0.0 if no tags exist
+              }
+              
+              // Increment the patch version (e.g., v1.2.3 -> v1.2.4)
+              const parts = latestTag.substring(1).split('.').map(Number);
+              parts[2] += 1; // Increment patch
+              return `v${parts.join('.')}`;
+            }
+
+            // 1. Get all tags
+            const { data: tags } = await github.rest.repos.listTags({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+            });
+
+            // 2. Calculate the next version
+            const nextTag = getNextVersion(tags);
+            console.log(`Next release tag will be: ${nextTag}`);
+
+            // 3. Create the new tag
+            await github.rest.git.createRef({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              ref: `refs/tags/${nextTag}`,
+              sha: context.sha
+            });
+
+            // 4. Set the tag as an output for the next job
+            core.setOutput('tag', nextTag);
+          
+          # Allow the workflow to run if no tags are found
+          retries: 0
+          
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+---
+
   release:
-    needs: build 
-    if: startsWith(github.ref, 'refs/tags/v')
+    needs: [build, tag_version] # Depend on the new tagging job
+    # Now that we create the tag, we can remove the 'if' condition here
+    # if: startsWith(github.ref, 'refs/tags/v')
     
     runs-on: ubuntu-latest
     permissions:
-      contents: write 
+      contents: write
 
     steps:
-      # (Optional) Step 1: Check out the code if the build job was separate and didn't leave the file
-      # - uses: actions/checkout@v4
-      
-      # Step 2: Ensure your final file is in the workspace
-      # You need to have either *downloaded* the artifact from the 'build' job 
-      # or *re-ran* the build/packaging command in this job.
-      
-      # --- Example: Locating the File ---
-      - name: Locate and Rename Android AAB/Zip
+      # Step 1: Download the artifact from the 'build' job
+      - name: 📥 Download Android Artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: release-aab
+          path: build/app/outputs/bundle/release/
+
+      - name: Locate and Rename Android AAB
+        id: locate_file # Add an ID to reference outputs
         run: |
-          # 1. Define the tag for a clean filename
-          TAG=${{ github.ref_name }}
-          
-          # 2. Example path to your built AAB file (ADJUST THIS PATH AS NEEDED)
-          AAB_PATH=app/build/outputs/bundle/release/app-release.aab
-          
-          # 3. Define the final asset name for the release
+          # The tag is now an output from the 'tag_version' job
+          TAG=${{ needs.tag_version.outputs.semver.tag }} 
+
+          # Example path to your built AAB file 
+          # Note: The path is now relative to the download location
+          AAB_PATH=build/app/outputs/bundle/release/app-release.aab
+
+          # Define the final asset name for the release
           ASSET_NAME="qr-ipfs-${TAG}.aab"
 
-          # 4. Move/rename the file to the root of the workspace for easy upload
+          # Move/rename the file to the root of the workspace for easy upload
           mv $AAB_PATH $ASSET_NAME
           
-      # Step 3: Create the Release and Upload the Asset
-      - name: Create GitHub Release and Upload AAB/Zip
+          # Output the asset name for the release step to use
+          echo "ASSET_NAME=$ASSET_NAME" >> $GITHUB_OUTPUT 
+        
+      # Step 3: Create the Draft Release and Upload the Asset
+      - name: 📝 Create Draft GitHub Release and Upload AAB
         uses: softprops/action-gh-release@v1
         with:
-          # Use the filename you created in the previous step
-          files: ${{ steps.locate_file.outputs.ASSET_NAME }} # Or just "My_App_${{ github.ref_name }}.aab" if you don't use the 'id' and 'outputs' method
+          # Use the tag created in the previous job
+          tag_name: ${{ needs.tag_version.outputs.semver.tag }} 
+          
+          # Use the filename created in the previous step's output
+          files: ${{ steps.locate_file.outputs.ASSET_NAME }} 
+          
+          # Add 'draft: true' to create a draft release
+          draft: true
           
           # Use the tag name for the release title
-          name: Release ${{ github.ref_name }} 
-          body_path: RELEASE_NOTES.md # Recommended: use a file for large release notes
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          name: Draft Release ${{ needs.tag_version.outputs.semver.tag }}
