@@ -1,0 +1,21 @@
+name: qr_ipfs
+description: Mobile app that loads the QR-IPFS SPA offline
+version: 1.0.0+1
+
+environment:
+  sdk: ">=3.9.0 <4.0.0"
+  flutter: ">=3.35.7"
+
+dependencies:
+  flutter:
+    sdk: flutter
+  webview_flutter: ^4.2.2
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^2.0.0
+
+flutter:
+  assets:
+    - docs/

@@ -1,0 +1,24 @@
+# Uncomment this line to define a global platform for your project
+platform :ios, '12.0'
+
+# A path reference used by Flutter to find the root of the application
+flutter_application_path = File.expand_path('..', File.dirname(__FILE__))
+load File.join(flutter_application_path, 'ios', 'Flutter', 'podhelper.rb')
+
+# Define the main application target
+target 'Runner' do
+  # This function installs all pods required by the Flutter plugins in your pubspec.yaml
+  install_all_flutter_pods(flutter_application_path)
+
+  # Explicitly set the minimum deployment target for any plugins
+  post_install do |installer|
+    # Iterate over all targets in the Pods project
+    installer.pods_project.targets.each do |target|
+      # Iterate over all build configurations (Debug, Release, etc.)
+      target.build_configurations.each do |config|
+        # Ensure the deployment target is at least the version set globally (12.0)
+        config.build_settings['IPHONEOS_DEPLOYMENT_TARGET'] = platform_version if config.build_settings['IPHONEOS_DEPLOYMENT_TARGET'].to_f < platform_version.to_f
+      end
+    end
+  end
+end

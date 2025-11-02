@@ -1,0 +1,182 @@
+name: Build
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+  workflow_dispatch:
+
+jobs:
+  build:
+    # Use Ubuntu for x64 builds
+    runs-on: ubuntu-latest
+    
+    # Optional: Set a timeout for the job
+    timeout-minutes: 15
+
+    steps:
+    - name: ⬇️ Checkout code
+      uses: actions/checkout@v4
+
+    - name: ⚙️ Set up Flutter
+      uses: subosito/flutter-action@v2
+      with:
+        # Use the latest stable Flutter version (3.35.7 as of the current date)
+        flutter-version: '3.35.7'
+        # The default channel is 'stable', but specifying it is good practice
+        channel: 'stable'
+        # Set architecture to x64 for the ubuntu-latest runner
+        architecture: x64
+        # Enable caching for pub packages
+        cache: true 
+
+
+    - name: 🔍 licenses
+      run: yes | flutter doctor --android-licenses
+      
+    - name: 🔍 deps 
+      run: |
+          sudo apt update
+          sudo apt install libgtk-3-dev -y
+          sudo apt install mesa-utils -y
+        
+    - name: 🔍 upgrade
+      run: flutter upgrade
+
+    - name: 🔍 Check version
+      run: flutter --version
+      
+    - name: 🏗️ Create builds
+      run: flutter create . --platforms android,ios,web
+      
+    - name: 📦 Install dependencies
+      run: flutter pub get
+
+    - name: 📦 upgrade dependencies
+      run: flutter pub upgrade --major-versions
+      
+    - name: Outdated dependencies
+      run: flutter pub outdated
+
+    - name: 💎 Install CocoaPods
+      run: |
+        sudo gem install cocoapods
+          
+    - name: 🔍 doctor
+      run: flutter doctor
+
+    - name: 🔍 print formatting
+      run: dart format --output=show .
+      
+    - name: 🔍 Check formatting
+      run: dart format --set-exit-if-changed .
+
+    - name: 🔍 doctor
+      run: flutter doctor
+
+    - name: 📝 Run static analysis
+      run: flutter analyze
+
+    - name: 🧪 Run tests
+      # Run tests with code coverage
+      run: flutter test --coverage
+
+    - name: 🏗️ Build Web Release
+      run: flutter build web --release
+    
+    - name: 🚀 Upload Web Artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: web-build
+        path: build/web
+
+    - name: 🏗️ Build Android App Bundle (.aab)
+      # The signing is handled automatically by Gradle using the files set up above
+      run: flutter build appbundle --release
+    
+    - name: 📤 Upload Android Artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: release-aab
+        path: build/app/outputs/bundle/release/app-release.aab
+
+    # - name: 🏗️ Build iOS Archive
+    #   # Creates the .xcarchive file
+    #   run: flutter build ios --no-codesign
+
+    # - name: 📦 Create Unsigned IPA
+    #   # Uses xcodebuild to convert the archive to an IPA without distribution signing
+    #   run: |
+    #     # The ExportOptions.plist must be present in your repository
+    #     ARCHIVE_PATH=$(find build/ios/archive/ -type d -name "*.xcarchive" -print -quit)
+        
+    #     mkdir -p build/ios/ipa
+    #     xcodebuild -exportArchive \
+    #         -archivePath "$ARCHIVE_PATH" \
+    #         -exportPath build/ios/ipa \
+    #         -exportOptionsPlist ios/ExportOptions.plist
+
+    # - name: 📤 Upload iOS Artifact
+    #   uses: actions/upload-artifact@v4
+    #   with:
+    #     name: unsigned-ipa
+    #     path: build/ios/ipa/*.ipa
+
+    # - name: 💻 Build Linux Release
+    #   # Enable a Linux desktop target (requires dependencies)
+    #   run: |
+    #     sudo apt-get update -y
+    #     sudo apt-get install -y clang cmake ninja-build pkg-config libgtk-3-dev
+    #     flutter config --enable-linux-desktop
+    #     flutter build linux --release
+
+    # - name: ⬆️ Upload Linux Artifact
+    #   uses: actions/upload-artifact@v4
+    #   with:
+    #     name: linux-build
+    #     path: build/linux/x64/release/bundle
+
+  release:
+    needs: build 
+    if: startsWith(github.ref, 'refs/tags/v')
+    
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write 
+
+    steps:
+      # (Optional) Step 1: Check out the code if the build job was separate and didn't leave the file
+      # - uses: actions/checkout@v4
+      
+      # Step 2: Ensure your final file is in the workspace
+      # You need to have either *downloaded* the artifact from the 'build' job 
+      # or *re-ran* the build/packaging command in this job.
+      
+      # --- Example: Locating the File ---
+      - name: Locate and Rename Android AAB/Zip
+        run: |
+          # 1. Define the tag for a clean filename
+          TAG=${{ github.ref_name }}
+          
+          # 2. Example path to your built AAB file (ADJUST THIS PATH AS NEEDED)
+          AAB_PATH=app/build/outputs/bundle/release/app-release.aab
+          
+          # 3. Define the final asset name for the release
+          ASSET_NAME="qr-ipfs-${TAG}.aab"
+
+          # 4. Move/rename the file to the root of the workspace for easy upload
+          mv $AAB_PATH $ASSET_NAME
+          
+      # Step 3: Create the Release and Upload the Asset
+      - name: Create GitHub Release and Upload AAB/Zip
+        uses: softprops/action-gh-release@v1
+        with:
+          # Use the filename you created in the previous step
+          files: ${{ steps.locate_file.outputs.ASSET_NAME }} # Or just "My_App_${{ github.ref_name }}.aab" if you don't use the 'id' and 'outputs' method
+          
+          # Use the tag name for the release title
+          name: Release ${{ github.ref_name }} 
+          body_path: RELEASE_NOTES.md # Recommended: use a file for large release notes
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

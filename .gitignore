@@ -1,0 +1,7 @@
+# user specific ignores
+.DS_Store
+.editorconfig
+
+# Godot 4+ specific ignores
+.godot/
+/android/
