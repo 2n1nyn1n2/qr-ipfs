@@ -208,8 +208,6 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
----
-
   release:
     needs: [build, tag_version] # Depend on the new tagging job
     
