@@ -105,10 +105,21 @@ class _QrIpfsWebViewState extends State<QrIpfsWebView> {
     // --- FIX: Platform-specific settings are now accessed via the platform property ---
     // This resolves the 'setPlatformDetails' and 'AndroidWebViewControllerDetails' errors.
     if (webController.platform is AndroidWebViewController) {
-      // You can now configure Android-specific settings here.
-      // For example, enabling the ability to debug the WebView using Chrome DevTools.
-      // Note: debugging is often enabled automatically in debug mode.
-      (webController.platform as AndroidWebViewController).enableZoom(true);
+      final androidController = webController.platform as AndroidWebViewController;
+      
+      // 1. Enable Zoom (Example of Android-specific setting)
+      androidController.enableZoom(true);
+
+      // 2. Add the crucial permission request handler for the Camera/Mic
+      androidController.setOnPermissionRequest((request) {
+        // Log the request to see what resources are being asked for (e.g., 'VIDEO_CAPTURE')
+        debugPrint('Webview Permission Request for: ${request.resources}');
+
+        // Grant permission for all requested resources automatically.
+        // In a production app, you might want to check the origin 
+        // (request.origin) and perform a native runtime permission check first.
+        request.grant();
+      });
     }
     // -------------------------------------------------------------------------
 
