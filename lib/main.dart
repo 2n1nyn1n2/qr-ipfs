@@ -1,6 +1,6 @@
 // 1. Dart SDK Imports
 // (Keep these commented as they aren't needed for the final code)
-// import 'dart:convert'; 
+// import 'dart:convert';
 // import 'dart:io';
 
 // 2. Flutter/Package Imports
@@ -8,6 +8,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart' show rootBundle;
 import 'package:webview_flutter/webview_flutter.dart';
 import 'package:webview_flutter_android/webview_flutter_android.dart';
+// Note: webview_flutter_platform_interface is often implicitly included, but
+// keeping it here as a dependency reference is fine.
+// ignore: unused_import
 import 'package:webview_flutter_platform_interface/webview_flutter_platform_interface.dart';
 
 void main() {
@@ -57,7 +60,9 @@ class QrIpfsWebView extends StatefulWidget {
 class _QrIpfsWebViewState extends State<QrIpfsWebView> {
   late final WebViewController controller;
 
-  // --- New: Define the Javascript Channel for logging ---
+  // The separate function definition for _printChannel is not strictly
+  // necessary as the channel is defined inline, but it's kept for reference.
+  // ignore: unused_element
   JavascriptChannel _printChannel() {
     return JavascriptChannel(
       name: 'Print', // This is the channel name JavaScript will use
@@ -67,7 +72,6 @@ class _QrIpfsWebViewState extends State<QrIpfsWebView> {
       },
     );
   }
-  // --------------------------------------------------------
 
   @override
   void initState() {
@@ -78,17 +82,16 @@ class _QrIpfsWebViewState extends State<QrIpfsWebView> {
       // 2. Configure the controller (JavaScript mode, navigation delegate, etc.).
       ..setJavaScriptMode(JavaScriptMode.unrestricted)
       
-      // --- Update: Add the Javascript Channel for logging ---
+      // --- Add the Javascript Channel for logging ---
       ..addJavaScriptChannel(
-        'Print', 
+        'Print',
         onMessageReceived: (message) {
           debugPrint('JS_CONSOLE: ${message.message}');
         },
       )
-      // ----------------------------------------------------
+      // ---------------------------------------------
 
       // Optional: Set platform details for Android for explicit debugging enablement
-      // (This is often not needed in debug mode, but doesn't hurt)
       ..setPlatformDetails(AndroidWebViewControllerDetails(
           debuggingEnabled: true,
       ))
@@ -102,9 +105,7 @@ class _QrIpfsWebViewState extends State<QrIpfsWebView> {
             // Optional: Handle page start
           },
           onPageFinished: (String url) {
-            // This is a good place to inject a function to intercept console.log()
-            // if you want to automatically redirect ALL JS console messages.
-            // For now, we rely on the JS file calling 'Print.postMessage()'.
+            // Good place to inject JS for advanced console logging, if needed.
           },
           onWebResourceError: (WebResourceError error) {
             debugPrint('Web Resource Error: ${error.description}');
@@ -116,7 +117,7 @@ class _QrIpfsWebViewState extends State<QrIpfsWebView> {
         widget.htmlContent,
         // Using 'http://localhost' as a virtual base URL can help some web 
         // technologies (like history API) function better, even for local content.
-        baseUrl: 'http://localhost', 
+        baseUrl: 'http://localhost',
       );
   }
 
