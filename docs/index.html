@@ -3,14 +3,12 @@
 <head>
   <meta charset="UTF-8">
   <title>QR Code Scanner & IPFS Uploader</title>
-  <!--
-  <script src="html5-qrcode.min.js"></script>
-  -->
   <script src="https://unpkg.com/html5-qrcode"></script>
 </head>
 <body>
   <h1>QR Code Scanner & IPFS Uploader</h1>
 
+  <!-- JWT Form -->
   <div>
     <label for="jwt-input">Enter Pinata JWT:</label>
     <input type="text" id="jwt-input" style="width:400px;">
@@ -20,15 +18,19 @@
 
   <hr>
 
+  <!-- Scan Controls -->
   <button id="start-scan-btn">Start Scan</button>
   <button id="stop-scan-btn">Stop Scan</button>
   <p id="scan-status" style="color:blue;"></p>
 
+  <!-- QR Scanner -->
   <div id="reader" style="width: 500px;"></div>
 
+  <!-- Display scanned QR codes -->
   <h3>Scanned QR Codes:</h3>
   <ul id="qr-list"></ul>
 
+  <!-- Action Buttons -->
   <button id="upload-all-btn">Upload All to IPFS</button>
   <button id="clear-list-btn">Clear QR Code List</button>
   <button id="clear-ipfs-btn">Clear Local IPFS Uploads</button>
@@ -36,32 +38,10 @@
   <button id="list-all-ipfs-btn">List All Pinata Uploads</button>
   <button id="delete-all-btn">Delete All Pinata Files</button>
 
+  <!-- List area -->
   <ul id="uploaded-ipfs-list"></ul>
 
   <script>
-    // =========================================================================
-    // CUSTOM FLUTTER LOGGING FUNCTION
-    // This sends messages to the Dart 'Print' JavascriptChannel for console output.
-    // =========================================================================
-    function flutterLog(...args) {
-      const message = args.map(a => {
-        // Handle objects/errors by converting them to a string
-        if (typeof a === 'object' && a !== null) {
-          return JSON.stringify(a);
-        }
-        return String(a);
-      }).join(' ');
-
-      if (window.Print && typeof window.Print.postMessage === 'function') {
-        window.Print.postMessage(message);
-      } else {
-        // Fallback for debugging in a regular browser
-        console.log("NO_FLUTTER_CHANNEL: " + message);
-      }
-    }
-    // =========================================================================
-
-
     const jwtInput = document.getElementById("jwt-input");
     const saveJwtBtn = document.getElementById("save-jwt");
     const jwtStatus = document.getElementById("jwt-status");
@@ -147,10 +127,8 @@
       ).then(() => {
         scanning = true;
         scanStatus.textContent = "Scanning started...";
-        flutterLog("Scanning started successfully."); // LOGGING CHANGE
       }).catch(err => {
         scanStatus.textContent = `Cannot start scan: ${err}`;
-        flutterLog(`Cannot start scan: ${err}`); // LOGGING CHANGE
       });
     });
 
@@ -160,10 +138,8 @@
         html5QrCode.stop().then(() => {
           scanning = false;
           scanStatus.textContent = "Scanning stopped.";
-          flutterLog("Scanning stopped."); // LOGGING CHANGE
         }).catch(err => {
           scanStatus.textContent = `Cannot stop scan: ${err}`;
-          flutterLog(`Cannot stop scan: ${err}`); // LOGGING CHANGE
         });
       }
     });
@@ -172,14 +148,12 @@
     uploadAllBtn.addEventListener("click", async () => {
       if (!PINATA_JWT) return alert("Please set your JWT first!");
       if (scannedQRs.length === 0) return alert("No QR codes to upload");
-      flutterLog("Starting upload process for " + scannedQRs.length + " QR codes."); // LOGGING CHANGE
 
       try {
         for (let i = 0; i < scannedQRs.length; i++) {
           const qrText = scannedQRs[i];
           const blob = new Blob([qrText], { type: "text/plain" });
           const safeFileName = `${sanitizeFileName(qrText)}.txt`;
-          flutterLog(`Uploading file: ${safeFileName}`); // LOGGING CHANGE
 
           const formData = new FormData();
           formData.append("file", blob, safeFileName);
@@ -192,12 +166,12 @@
 
           const data = await response.json();
           if (!data.IpfsHash) {
-            flutterLog("Upload failed for QR: " + qrText + JSON.stringify(data)); // LOGGING CHANGE
+            console.error("Upload failed for QR:", qrText, data);
             alert(`Upload failed for QR code: ${qrText}`);
             continue;
           }
 
-          flutterLog(`Uploaded: ${qrText} → IPFS: ${data.IpfsHash}`); // LOGGING CHANGE
+          console.log(`Uploaded: ${qrText} → IPFS: ${data.IpfsHash}`);
           uploadedIPs.push({ qrText, hash: data.IpfsHash });
           localStorage.setItem("UPLOADED_IPFS", JSON.stringify(uploadedIPs));
         }
@@ -209,7 +183,7 @@
         renderUploadedIPFSList();
 
       } catch (err) {
-        flutterLog("Upload process failed: " + err); // LOGGING CHANGE
+        console.error(err);
         alert("Upload process failed");
       }
     });
@@ -221,7 +195,6 @@
         localStorage.removeItem("SCANNED_QRS");
         renderQRList();
         scanStatus.textContent = "QR code list cleared.";
-        flutterLog("QR code list cleared."); // LOGGING CHANGE
       }
     });
 
@@ -232,7 +205,6 @@
         localStorage.removeItem("UPLOADED_IPFS");
         renderUploadedIPFSList();
         alert("Local IPFS upload history cleared (does not unpin files).");
-        flutterLog("Local IPFS upload history cleared."); // LOGGING CHANGE
       }
     });
 
@@ -243,13 +215,11 @@
         return;
       }
       renderUploadedIPFSList();
-      flutterLog("Displayed local IPFS upload list."); // LOGGING CHANGE
     });
 
     // List all uploads from Pinata
     listAllIPFSBtn.addEventListener("click", async () => {
       if (!PINATA_JWT) return alert("Please set your JWT first!");
-      flutterLog("Fetching all pinned files from Pinata..."); // LOGGING CHANGE
 
       try {
         const response = await fetch("https://api.pinata.cloud/data/pinList?status=pinned&limit=1000", {
@@ -265,10 +235,9 @@
           li.textContent = `Name: ${pin.metadata?.name || "N/A"} → Hash: ${pin.ipfs_pin_hash}`;
           uploadedIPFSListEl.appendChild(li);
         });
-        flutterLog(`Successfully fetched ${pins.length} pinned files.`); // LOGGING CHANGE
 
       } catch (err) {
-        flutterLog("Failed to fetch uploads from Pinata: " + err); // LOGGING CHANGE
+        console.error(err);
         alert("Failed to fetch uploads from Pinata");
       }
     });
@@ -278,19 +247,17 @@
       if (!PINATA_JWT) return alert("Please set your JWT first!");
       if (uploadedIPs.length === 0) return alert("No uploaded files to delete.");
       if (!confirm("Are you sure you want to delete all uploaded IPFS files? This cannot be undone.")) return;
-      flutterLog("Starting Pinata unpinning process for " + uploadedIPs.length + " files."); // LOGGING CHANGE
 
       try {
         for (const file of uploadedIPs) {
-          flutterLog(`Attempting to unpin: ${file.hash}`); // LOGGING CHANGE
           const response = await fetch(`https://api.pinata.cloud/pinning/unpin/${file.hash}`, {
             method: "DELETE",
             headers: { Authorization: `Bearer ${PINATA_JWT}` }
           });
           if (response.ok) {
-            flutterLog(`Successfully unpinned: ${file.hash}`); // LOGGING CHANGE
+            console.log(`Unpinned: ${file.hash}`);
           } else {
-            flutterLog(`Failed to unpin: ${file.hash} (Status: ${response.status})`); // LOGGING CHANGE
+            console.error(`Failed to unpin: ${file.hash}`);
           }
         }
 
@@ -300,6 +267,11 @@
         alert("All uploaded IPFS files deleted (unpinned) successfully.");
 
       } catch (err) {
-        flutterLog("Failed to delete files (unpin): " + err); // LOGGING CHANGE
+        console.error(err);
         alert("Failed to delete files");
       }
+    });
+
+  </script>
+</body>
+</html>
