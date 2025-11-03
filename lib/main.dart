@@ -155,16 +155,12 @@ class _QrIpfsWebViewState extends State<QrIpfsWebView> {
       // 1. Enable Zoom (Example of Android-specific setting)
       androidController.enableZoom(true);
 
-      // 2. Add the crucial permission request handler for the Camera/Mic
-      androidController.setOnPermissionRequest((request) {
-        // Log the request
-        debugPrint('Webview Permission Request for: ${request.resources}');
-
-        // This grants the permission from the WebView perspective.
-        // It relies on the app having already obtained the OS-level permission
-        // using permission_handler (handled in QrIpfsApp).
-        request.grant();
-      });
+      androidController.setPermissionRequestHandler(
+          (WebViewPermissionRequest request) {
+              // The callback argument type has also changed slightly
+              request.grant(); 
+          }
+      );
     }
     // -------------------------------------------------------------------------
 
