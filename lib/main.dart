@@ -109,47 +109,50 @@ class _QrIpfsWebViewState extends State<QrIpfsWebView> {
 
     // 1. Create a WebViewController instance, including the universal
     //    'onPermissionRequest' callback in the constructor.
-    final WebViewController webController = WebViewController(
-      onPermissionRequest: (WebViewPermissionRequest request) {
-        // The property to check requested resources is now `types` (Set<WebViewPermissionResourceType>)
-        // The error 'request.resources' is resolved by using 'request.types'.
-        debugPrint('Webview Permission Request for: ${request.types.toString()}');
+    final WebViewController webController =
+        WebViewController(
+            onPermissionRequest: (WebViewPermissionRequest request) {
+              // The property to check requested resources is now `types` (Set<WebViewPermissionResourceType>)
+              // The error 'request.resources' is resolved by using 'request.types'.
+              debugPrint(
+                'Webview Permission Request for: ${request.types.toString()}',
+              );
 
-        // Grant the permission for the WebView. This relies on the
-        // OS-level permission having been granted by `permission_handler` earlier.
-        request.grant();
-      },
-    )
-      // 2. Configure the controller (JavaScript mode, navigation delegate, etc.).
-      ..setJavaScriptMode(JavaScriptMode.unrestricted)
-      ..addJavaScriptChannel(
-        'Print', // This name must match the one used in JavaScript
-        onMessageReceived: (JavaScriptMessage message) {
-          debugPrint('JS_CONSOLE: ${message.message}');
-        },
-      )
-      ..setNavigationDelegate(
-        NavigationDelegate(
-          onProgress: (int progress) {
-            // Optional: Handle progress updates
-          },
-          onPageStarted: (String url) {
-            // Optional: Handle page start
-          },
-          onPageFinished: (String url) {
-            // Optional: Handle page finished
-          },
-          onWebResourceError: (WebResourceError error) {
-            debugPrint('Web Resource Error: ${error.description}');
-          },
-        ),
-      )
-      // 3. Load the HTML string using loadHtmlString.
-      ..loadHtmlString(
-        widget.htmlContent,
-        // Use 'http://localhost' for a trustworthy origin that enables camera access
-        baseUrl: 'http://localhost',
-      );
+              // Grant the permission for the WebView. This relies on the
+              // OS-level permission having been granted by `permission_handler` earlier.
+              request.grant();
+            },
+          )
+          // 2. Configure the controller (JavaScript mode, navigation delegate, etc.).
+          ..setJavaScriptMode(JavaScriptMode.unrestricted)
+          ..addJavaScriptChannel(
+            'Print', // This name must match the one used in JavaScript
+            onMessageReceived: (JavaScriptMessage message) {
+              debugPrint('JS_CONSOLE: ${message.message}');
+            },
+          )
+          ..setNavigationDelegate(
+            NavigationDelegate(
+              onProgress: (int progress) {
+                // Optional: Handle progress updates
+              },
+              onPageStarted: (String url) {
+                // Optional: Handle page start
+              },
+              onPageFinished: (String url) {
+                // Optional: Handle page finished
+              },
+              onWebResourceError: (WebResourceError error) {
+                debugPrint('Web Resource Error: ${error.description}');
+              },
+            ),
+          )
+          // 3. Load the HTML string using loadHtmlString.
+          ..loadHtmlString(
+            widget.htmlContent,
+            // Use 'http://localhost' for a trustworthy origin that enables camera access
+            baseUrl: 'http://localhost',
+          );
 
     // --- PLATFORM-SPECIFIC SETTING (Only keep for non-permission features) ---
     // The previous `setPermissionRequestHandler` is no longer needed here.
