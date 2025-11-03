@@ -81,7 +81,6 @@ class _QrIpfsWebViewState extends State<QrIpfsWebView> {
     controller = WebViewController()
       // 2. Configure the controller (JavaScript mode, navigation delegate, etc.).
       ..setJavaScriptMode(JavaScriptMode.unrestricted)
-      
       // --- Add the Javascript Channel for logging ---
       ..addJavaScriptChannel(
         'Print',
@@ -90,12 +89,10 @@ class _QrIpfsWebViewState extends State<QrIpfsWebView> {
         },
       )
       // ---------------------------------------------
-
       // Optional: Set platform details for Android for explicit debugging enablement
-      ..setPlatformDetails(AndroidWebViewControllerDetails(
-          debuggingEnabled: true,
-      ))
-
+      ..setPlatformDetails(
+        AndroidWebViewControllerDetails(debuggingEnabled: true),
+      )
       ..setNavigationDelegate(
         NavigationDelegate(
           onProgress: (int progress) {
@@ -115,7 +112,7 @@ class _QrIpfsWebViewState extends State<QrIpfsWebView> {
       // 3. Load the HTML string using loadHtmlString.
       ..loadHtmlString(
         widget.htmlContent,
-        // Using 'http://localhost' as a virtual base URL can help some web 
+        // Using 'http://localhost' as a virtual base URL can help some web
         // technologies (like history API) function better, even for local content.
         baseUrl: 'http://localhost',
       );
