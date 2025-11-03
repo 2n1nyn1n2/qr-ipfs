@@ -107,18 +107,27 @@ class _QrIpfsWebViewState extends State<QrIpfsWebView> {
   void initState() {
     super.initState();
 
-    // 1. Create a WebViewController instance.
-    final WebViewController webController = WebViewController()
+    // 1. Create a WebViewController instance, including the universal
+    //    'onPermissionRequest' callback in the constructor.
+    final WebViewController webController = WebViewController(
+      onPermissionRequest: (WebViewPermissionRequest request) {
+        // The property to check requested resources is now `types` (Set<WebViewPermissionResourceType>)
+        // The error 'request.resources' is resolved by using 'request.types'.
+        debugPrint('Webview Permission Request for: ${request.types.toString()}');
+
+        // Grant the permission for the WebView. This relies on the
+        // OS-level permission having been granted by `permission_handler` earlier.
+        request.grant();
+      },
+    )
       // 2. Configure the controller (JavaScript mode, navigation delegate, etc.).
       ..setJavaScriptMode(JavaScriptMode.unrestricted)
-      // --- FIX: Use JavaScriptChannel (capital J) and JavaScriptMessage ---
       ..addJavaScriptChannel(
         'Print', // This name must match the one used in JavaScript
         onMessageReceived: (JavaScriptMessage message) {
           debugPrint('JS_CONSOLE: ${message.message}');
         },
       )
-      // --------------------------------------------------------------------
       ..setNavigationDelegate(
         NavigationDelegate(
           onProgress: (int progress) {
@@ -142,27 +151,14 @@ class _QrIpfsWebViewState extends State<QrIpfsWebView> {
         baseUrl: 'http://localhost',
       );
 
-    // --- PLATFORM-SPECIFIC PERMISSION HANDLING (Android Only) ---
+    // --- PLATFORM-SPECIFIC SETTING (Only keep for non-permission features) ---
+    // The previous `setPermissionRequestHandler` is no longer needed here.
     if (webController.platform is AndroidWebViewController) {
       final androidController =
           webController.platform as AndroidWebViewController;
 
-      // 1. Enable Zoom (Example of Android-specific setting)
+      // This is still needed for Android-specific configuration like Zoom.
       androidController.enableZoom(true);
-
-      // 2. Add the crucial permission request handler for the Camera/Mic
-      // FIX: Replaced setOnPermissionRequest with setPermissionRequestHandler
-      androidController.setPermissionRequestHandler((
-        WebViewPermissionRequest request,
-      ) {
-        // Log the request
-        debugPrint('Webview Permission Request for: ${request.resources}');
-
-        // This grants the permission from the WebView perspective.
-        // It relies on the app having already obtained the OS-level permission
-        // using permission_handler (handled in QrIpfsApp).
-        request.grant();
-      });
     }
     // -------------------------------------------------------------------------
 
