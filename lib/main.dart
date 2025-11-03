@@ -1,18 +1,17 @@
 // 1. Dart SDK Imports
-// import 'dart:convert';
+// (Keep these commented as they aren't needed for the final code)
+// import 'dart:convert'; 
 // import 'dart:io';
 
 // 2. Flutter/Package Imports
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart' show rootBundle;
 import 'package:webview_flutter/webview_flutter.dart';
+import 'package:webview_flutter_android/webview_flutter_android.dart';
+import 'package:webview_flutter_platform_interface/webview_flutter_platform_interface.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
-
-  // The old platform-specific setup is no longer necessary for basic usage,
-  // as Hybrid Composition is generally the default on modern versions.
-
   runApp(const QrIpfsApp());
 }
 
@@ -58,6 +57,18 @@ class QrIpfsWebView extends StatefulWidget {
 class _QrIpfsWebViewState extends State<QrIpfsWebView> {
   late final WebViewController controller;
 
+  // --- New: Define the Javascript Channel for logging ---
+  JavascriptChannel _printChannel() {
+    return JavascriptChannel(
+      name: 'Print', // This is the channel name JavaScript will use
+      onMessageReceived: (JavascriptMessage message) {
+        // Output the message to the Flutter/Dart console
+        debugPrint('JS_CONSOLE: ${message.message}');
+      },
+    );
+  }
+  // --------------------------------------------------------
+
   @override
   void initState() {
     super.initState();
@@ -66,32 +77,46 @@ class _QrIpfsWebViewState extends State<QrIpfsWebView> {
     controller = WebViewController()
       // 2. Configure the controller (JavaScript mode, navigation delegate, etc.).
       ..setJavaScriptMode(JavaScriptMode.unrestricted)
+      
+      // --- Update: Add the Javascript Channel for logging ---
+      ..addJavaScriptChannel(
+        'Print', 
+        onMessageReceived: (message) {
+          debugPrint('JS_CONSOLE: ${message.message}');
+        },
+      )
+      // ----------------------------------------------------
+
+      // Optional: Set platform details for Android for explicit debugging enablement
+      // (This is often not needed in debug mode, but doesn't hurt)
+      ..setPlatformDetails(AndroidWebViewControllerDetails(
+          debuggingEnabled: true,
+      ))
+
       ..setNavigationDelegate(
         NavigationDelegate(
           onProgress: (int progress) {
             // Optional: Handle progress updates
-            // print('WebView is loading (progress: $progress%)');
           },
           onPageStarted: (String url) {
             // Optional: Handle page start
           },
           onPageFinished: (String url) {
-            // Optional: Handle page finish
+            // This is a good place to inject a function to intercept console.log()
+            // if you want to automatically redirect ALL JS console messages.
+            // For now, we rely on the JS file calling 'Print.postMessage()'.
           },
           onWebResourceError: (WebResourceError error) {
-            // Optional: Handle errors
+            debugPrint('Web Resource Error: ${error.description}');
           },
         ),
       )
       // 3. Load the HTML string using loadHtmlString.
       ..loadHtmlString(
         widget.htmlContent,
-        // The base URL is often used to resolve relative paths for assets (like CSS/JS)
-        // if they are bundled in a way the WebView can access.
-        // For simple string loading without local asset linking, this can be null or 'about:blank'.
-        // If your HTML links to local assets, consider using `loadFlutterAsset` or
-        // setting up a local web server (a more complex solution).
-        // Since the original code was loading from Uri.dataFromString, we stick to loadHtmlString.
+        // Using 'http://localhost' as a virtual base URL can help some web 
+        // technologies (like history API) function better, even for local content.
+        baseUrl: 'http://localhost', 
       );
   }
 
