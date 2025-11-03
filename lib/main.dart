@@ -8,7 +8,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart' show rootBundle;
 import 'package:webview_flutter/webview_flutter.dart';
 // Package to handle runtime permissions (must be added to pubspec.yaml)
-import 'package:permission_handler/permission_handler.dart'; 
+import 'package:permission_handler/permission_handler.dart';
 // We still need the Android package to access platform-specific configurations
 import 'package:webview_flutter_android/webview_flutter_android.dart';
 // Note: webview_flutter_platform_interface is no longer directly needed, so we
@@ -43,10 +43,14 @@ class QrIpfsApp extends StatelessWidget {
       htmlContent = await rootBundle.loadString('docs/index.html');
     } catch (e) {
       debugPrint('Error loading HTML: $e');
-      htmlContent = '<html><body><h1>Error loading local content.</h1></body></html>';
+      htmlContent =
+          '<html><body><h1>Error loading local content.</h1></body></html>';
     }
 
-    return WebViewData(htmlContent: htmlContent, isPermissionGranted: isGranted);
+    return WebViewData(
+      htmlContent: htmlContent,
+      isPermissionGranted: isGranted,
+    );
   }
 
   @override
@@ -64,7 +68,9 @@ class QrIpfsApp extends StatelessWidget {
 
             final data = snapshot.data;
             if (data == null) {
-              return const Center(child: Text("Failed to initialize app data."));
+              return const Center(
+                child: Text("Failed to initialize app data."),
+              );
             }
 
             if (!data.isPermissionGranted) {
@@ -143,8 +149,9 @@ class _QrIpfsWebViewState extends State<QrIpfsWebView> {
 
     // --- PLATFORM-SPECIFIC PERMISSION HANDLING (Android Only) ---
     if (webController.platform is AndroidWebViewController) {
-      final androidController = webController.platform as AndroidWebViewController;
-      
+      final androidController =
+          webController.platform as AndroidWebViewController;
+
       // 1. Enable Zoom (Example of Android-specific setting)
       androidController.enableZoom(true);
 
@@ -154,7 +161,7 @@ class _QrIpfsWebViewState extends State<QrIpfsWebView> {
         debugPrint('Webview Permission Request for: ${request.resources}');
 
         // This grants the permission from the WebView perspective.
-        // It relies on the app having already obtained the OS-level permission 
+        // It relies on the app having already obtained the OS-level permission
         // using permission_handler (handled in QrIpfsApp).
         request.grant();
       });
