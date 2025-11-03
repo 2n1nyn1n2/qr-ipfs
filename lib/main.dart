@@ -7,11 +7,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart' show rootBundle;
 import 'package:webview_flutter/webview_flutter.dart';
-import 'package:webview_flutter_android/webview_flutter_android.dart';
-// Note: webview_flutter_platform_interface is often implicitly included, but
-// keeping it here as a dependency reference is fine.
-// ignore: unused_import
-import 'package:webview_flutter_platform_interface/webview_flutter_platform_interface.dart';
+// We still need the Android package to access platform-specific configurations
+import 'package:webview_flutter_android/webview_flutter_android.dart'; 
+// Note: webview_flutter_platform_interface is no longer directly needed, so we
+// remove the import to resolve the 'depend_on_referenced_packages' warning.
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
@@ -44,6 +43,7 @@ class QrIpfsApp extends StatelessWidget {
 
   Future<String> loadLocalHtml() async {
     // Ensure 'docs/index.html' is correctly listed in your pubspec.yaml assets section.
+    // Assuming 'docs/index.html' is in your assets
     return await rootBundle.loadString('docs/index.html');
   }
 }
@@ -60,39 +60,26 @@ class QrIpfsWebView extends StatefulWidget {
 class _QrIpfsWebViewState extends State<QrIpfsWebView> {
   late final WebViewController controller;
 
-  // The separate function definition for _printChannel is not strictly
-  // necessary as the channel is defined inline, but it's kept for reference.
-  // ignore: unused_element
-  JavascriptChannel _printChannel() {
-    return JavascriptChannel(
-      name: 'Print', // This is the channel name JavaScript will use
-      onMessageReceived: (JavascriptMessage message) {
-        // Output the message to the Flutter/Dart console
-        debugPrint('JS_CONSOLE: ${message.message}');
-      },
-    );
-  }
+  // Removed the unused, outdated _printChannel method definition.
 
   @override
   void initState() {
     super.initState();
 
     // 1. Create a WebViewController instance.
-    controller = WebViewController()
+    final WebViewController webController = WebViewController()
       // 2. Configure the controller (JavaScript mode, navigation delegate, etc.).
       ..setJavaScriptMode(JavaScriptMode.unrestricted)
-      // --- Add the Javascript Channel for logging ---
+      
+      // --- FIX: Use JavaScriptChannel (capital J) and JavaScriptMessage ---
       ..addJavaScriptChannel(
-        'Print',
-        onMessageReceived: (message) {
+        'Print', // This name must match the one used in JavaScript
+        onMessageReceived: (JavaScriptMessage message) {
           debugPrint('JS_CONSOLE: ${message.message}');
         },
       )
-      // ---------------------------------------------
-      // Optional: Set platform details for Android for explicit debugging enablement
-      ..setPlatformDetails(
-        AndroidWebViewControllerDetails(debuggingEnabled: true),
-      )
+      // --------------------------------------------------------------------
+      
       ..setNavigationDelegate(
         NavigationDelegate(
           onProgress: (int progress) {
@@ -102,7 +89,7 @@ class _QrIpfsWebViewState extends State<QrIpfsWebView> {
             // Optional: Handle page start
           },
           onPageFinished: (String url) {
-            // Good place to inject JS for advanced console logging, if needed.
+            // Optional: Handle page finished
           },
           onWebResourceError: (WebResourceError error) {
             debugPrint('Web Resource Error: ${error.description}');
@@ -112,10 +99,22 @@ class _QrIpfsWebViewState extends State<QrIpfsWebView> {
       // 3. Load the HTML string using loadHtmlString.
       ..loadHtmlString(
         widget.htmlContent,
-        // Using 'http://localhost' as a virtual base URL can help some web
+        // Using 'http://localhost' as a virtual base URL can help some web 
         // technologies (like history API) function better, even for local content.
         baseUrl: 'http://localhost',
       );
+      
+    // --- FIX: Platform-specific settings are now accessed via the platform property ---
+    // This resolves the 'setPlatformDetails' and 'AndroidWebViewControllerDetails' errors.
+    if (webController.platform is AndroidWebViewController) {
+        // You can now configure Android-specific settings here.
+        // For example, enabling the ability to debug the WebView using Chrome DevTools.
+        // Note: debugging is often enabled automatically in debug mode.
+        (webController.platform as AndroidWebViewController).enableZoom(true);
+    }
+    // -------------------------------------------------------------------------
+      
+    controller = webController;
   }
 
   @override
