@@ -224,23 +224,23 @@ jobs:
       - name: 📥 Download Android Artifact
         uses: actions/download-artifact@v4
         with:
-          name: release-aab
+          name: release-apk
           path: build/app/outputs/bundle/release/
 
-      - name: Locate and Rename Android AAB
+      - name: Locate and Rename Android APK
         id: locate_file # Add an ID to reference outputs
         run: |
           # 🟢 MODIFIED: Correctly access the job output 'new_tag'
           TAG=${{ needs.tag_version.outputs.new_tag }} 
 
-          # Example path to your built AAB file 
-          AAB_PATH=build/app/outputs/bundle/release/app-release.aab
+          # Example path to your built APK file 
+          APK_PATH=build/app/outputs/bundle/release/app-release.apk
 
           # Define the final asset name for the release
-          ASSET_NAME="qr-ipfs-${TAG}.aab"
+          ASSET_NAME="qr-ipfs-${TAG}.apk"
 
           # Move/rename the file to the root of the workspace for easy upload
-          mv $AAB_PATH $ASSET_NAME
+          mv $APK_PATH $ASSET_NAME
           
           # Output the asset name for the release step to use
           echo "ASSET_NAME=$ASSET_NAME" >> $GITHUB_OUTPUT 
