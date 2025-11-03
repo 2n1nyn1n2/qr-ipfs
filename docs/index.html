@@ -3,7 +3,10 @@
 <head>
   <meta charset="UTF-8">
   <title>QR Code Scanner & IPFS Uploader</title>
+  <script src="./html5-qrcode.min.js"></script>
+  <!--
   <script src="https://unpkg.com/html5-qrcode"></script>
+  -->
 </head>
 <body>
   <h1>QR Code Scanner & IPFS Uploader</h1>
@@ -42,6 +45,7 @@
   <ul id="uploaded-ipfs-list"></ul>
 
   <script>
+  window.onload = () => {
     const jwtInput = document.getElementById("jwt-input");
     const saveJwtBtn = document.getElementById("save-jwt");
     const jwtStatus = document.getElementById("jwt-status");
@@ -271,7 +275,7 @@
         alert("Failed to delete files");
       }
     });
-
+  }
   </script>
 </body>
 </html>
