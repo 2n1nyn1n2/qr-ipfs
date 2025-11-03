@@ -8,7 +8,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart' show rootBundle;
 import 'package:webview_flutter/webview_flutter.dart';
 // We still need the Android package to access platform-specific configurations
-import 'package:webview_flutter_android/webview_flutter_android.dart'; 
+import 'package:webview_flutter_android/webview_flutter_android.dart';
 // Note: webview_flutter_platform_interface is no longer directly needed, so we
 // remove the import to resolve the 'depend_on_referenced_packages' warning.
 
@@ -70,7 +70,6 @@ class _QrIpfsWebViewState extends State<QrIpfsWebView> {
     final WebViewController webController = WebViewController()
       // 2. Configure the controller (JavaScript mode, navigation delegate, etc.).
       ..setJavaScriptMode(JavaScriptMode.unrestricted)
-      
       // --- FIX: Use JavaScriptChannel (capital J) and JavaScriptMessage ---
       ..addJavaScriptChannel(
         'Print', // This name must match the one used in JavaScript
@@ -79,7 +78,6 @@ class _QrIpfsWebViewState extends State<QrIpfsWebView> {
         },
       )
       // --------------------------------------------------------------------
-      
       ..setNavigationDelegate(
         NavigationDelegate(
           onProgress: (int progress) {
@@ -99,21 +97,21 @@ class _QrIpfsWebViewState extends State<QrIpfsWebView> {
       // 3. Load the HTML string using loadHtmlString.
       ..loadHtmlString(
         widget.htmlContent,
-        // Using 'http://localhost' as a virtual base URL can help some web 
+        // Using 'http://localhost' as a virtual base URL can help some web
         // technologies (like history API) function better, even for local content.
         baseUrl: 'http://localhost',
       );
-      
+
     // --- FIX: Platform-specific settings are now accessed via the platform property ---
     // This resolves the 'setPlatformDetails' and 'AndroidWebViewControllerDetails' errors.
     if (webController.platform is AndroidWebViewController) {
-        // You can now configure Android-specific settings here.
-        // For example, enabling the ability to debug the WebView using Chrome DevTools.
-        // Note: debugging is often enabled automatically in debug mode.
-        (webController.platform as AndroidWebViewController).enableZoom(true);
+      // You can now configure Android-specific settings here.
+      // For example, enabling the ability to debug the WebView using Chrome DevTools.
+      // Note: debugging is often enabled automatically in debug mode.
+      (webController.platform as AndroidWebViewController).enableZoom(true);
     }
     // -------------------------------------------------------------------------
-      
+
     controller = webController;
   }
 
