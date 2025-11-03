@@ -152,17 +152,17 @@ class _QrIpfsWebViewState extends State<QrIpfsWebView> {
 
       // 2. Add the crucial permission request handler for the Camera/Mic
       // FIX: Replaced setOnPermissionRequest with setPermissionRequestHandler
-      androidController.setPermissionRequestHandler(
-        (WebViewPermissionRequest request) {
-          // Log the request
-          debugPrint('Webview Permission Request for: ${request.resources}');
+      androidController.setPermissionRequestHandler((
+        WebViewPermissionRequest request,
+      ) {
+        // Log the request
+        debugPrint('Webview Permission Request for: ${request.resources}');
 
-          // This grants the permission from the WebView perspective.
-          // It relies on the app having already obtained the OS-level permission
-          // using permission_handler (handled in QrIpfsApp).
-          request.grant();
-        },
-      );
+        // This grants the permission from the WebView perspective.
+        // It relies on the app having already obtained the OS-level permission
+        // using permission_handler (handled in QrIpfsApp).
+        request.grant();
+      });
     }
     // -------------------------------------------------------------------------
 
