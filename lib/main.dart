@@ -7,6 +7,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart' show rootBundle;
 import 'package:webview_flutter/webview_flutter.dart';
+// Package to handle runtime permissions (must be added to pubspec.yaml)
+import 'package:permission_handler/permission_handler.dart'; 
 // We still need the Android package to access platform-specific configurations
 import 'package:webview_flutter_android/webview_flutter_android.dart';
 // Note: webview_flutter_platform_interface is no longer directly needed, so we
@@ -17,8 +19,35 @@ void main() {
   runApp(const QrIpfsApp());
 }
 
+// Data structure to hold both the permission status and the HTML content
+class WebViewData {
+  final String htmlContent;
+  final bool isPermissionGranted;
+
+  WebViewData({required this.htmlContent, required this.isPermissionGranted});
+}
+
 class QrIpfsApp extends StatelessWidget {
   const QrIpfsApp({super.key});
+
+  // New combined function to request permission and load HTML
+  Future<WebViewData> _requestPermissionsAndLoadHtml() async {
+    // 1. Request Camera Permission
+    final status = await Permission.camera.request();
+    final isGranted = status.isGranted;
+
+    // 2. Load HTML Content (we load it regardless, but use the permission status)
+    String htmlContent;
+    try {
+      // Ensure 'docs/index.html' is correctly listed in your pubspec.yaml assets section.
+      htmlContent = await rootBundle.loadString('docs/index.html');
+    } catch (e) {
+      debugPrint('Error loading HTML: $e');
+      htmlContent = '<html><body><h1>Error loading local content.</h1></body></html>';
+    }
+
+    return WebViewData(htmlContent: htmlContent, isPermissionGranted: isGranted);
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -26,25 +55,38 @@ class QrIpfsApp extends StatelessWidget {
       title: 'QR-IPFS',
       home: Scaffold(
         appBar: AppBar(title: const Text('QR-IPFS SPA')),
-        body: FutureBuilder<String>(
-          future: loadLocalHtml(),
+        body: FutureBuilder<WebViewData>(
+          future: _requestPermissionsAndLoadHtml(),
           builder: (context, snapshot) {
-            if (snapshot.connectionState == ConnectionState.done &&
-                snapshot.data != null) {
-              return QrIpfsWebView(htmlContent: snapshot.data!);
-            } else {
+            if (snapshot.connectionState != ConnectionState.done) {
               return const Center(child: CircularProgressIndicator());
             }
+
+            final data = snapshot.data;
+            if (data == null) {
+              return const Center(child: Text("Failed to initialize app data."));
+            }
+
+            if (!data.isPermissionGranted) {
+              // Show a message if the user denied the permission
+              return const Center(
+                child: Padding(
+                  padding: EdgeInsets.all(32.0),
+                  child: Text(
+                    'Camera permission is required to scan QR codes. Please enable it in app settings.',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(color: Colors.red),
+                  ),
+                ),
+              );
+            }
+
+            // If permission is granted and HTML is loaded, show the WebView
+            return QrIpfsWebView(htmlContent: data.htmlContent);
           },
         ),
       ),
     );
-  }
-
-  Future<String> loadLocalHtml() async {
-    // Ensure 'docs/index.html' is correctly listed in your pubspec.yaml assets section.
-    // Assuming 'docs/index.html' is in your assets
-    return await rootBundle.loadString('docs/index.html');
   }
 }
 
@@ -59,8 +101,6 @@ class QrIpfsWebView extends StatefulWidget {
 
 class _QrIpfsWebViewState extends State<QrIpfsWebView> {
   late final WebViewController controller;
-
-  // Removed the unused, outdated _printChannel method definition.
 
   @override
   void initState() {
@@ -97,13 +137,11 @@ class _QrIpfsWebViewState extends State<QrIpfsWebView> {
       // 3. Load the HTML string using loadHtmlString.
       ..loadHtmlString(
         widget.htmlContent,
-        // Using 'http://localhost' as a virtual base URL can help some web
-        // technologies (like history API) function better, even for local content.
+        // Use 'http://localhost' for a trustworthy origin that enables camera access
         baseUrl: 'http://localhost',
       );
 
-    // --- FIX: Platform-specific settings are now accessed via the platform property ---
-    // This resolves the 'setPlatformDetails' and 'AndroidWebViewControllerDetails' errors.
+    // --- PLATFORM-SPECIFIC PERMISSION HANDLING (Android Only) ---
     if (webController.platform is AndroidWebViewController) {
       final androidController = webController.platform as AndroidWebViewController;
       
@@ -112,12 +150,12 @@ class _QrIpfsWebViewState extends State<QrIpfsWebView> {
 
       // 2. Add the crucial permission request handler for the Camera/Mic
       androidController.setOnPermissionRequest((request) {
-        // Log the request to see what resources are being asked for (e.g., 'VIDEO_CAPTURE')
+        // Log the request
         debugPrint('Webview Permission Request for: ${request.resources}');
 
-        // Grant permission for all requested resources automatically.
-        // In a production app, you might want to check the origin 
-        // (request.origin) and perform a native runtime permission check first.
+        // This grants the permission from the WebView perspective.
+        // It relies on the app having already obtained the OS-level permission 
+        // using permission_handler (handled in QrIpfsApp).
         request.grant();
       });
     }
